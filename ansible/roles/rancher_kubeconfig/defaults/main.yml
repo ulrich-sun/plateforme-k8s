@@ -1,0 +1,1 @@
+rancher_kubeconfig_chemin: "{{ lookup('env', 'HOME') }}/.kube/rancher-{{ environnement }}.yaml"

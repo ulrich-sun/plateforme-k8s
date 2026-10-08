@@ -1,0 +1,53 @@
+# Attend que les clusters soient prêts puis affiche ce que Fleet voit.
+
+- name: Charger l'inventaire
+  ansible.builtin.import_playbook: _charger-inventaire.yml
+
+- name: Vérifier les clusters et Fleet
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../config/{{ environnement }}.yml"
+  roles:
+    - rancher_kubeconfig
+  tasks:
+    - name: Attendre que chaque cluster soit prêt (jusqu'à 30 min)
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ rancher_kubeconfig_chemin }}"
+        api_version: provisioning.cattle.io/v1
+        kind: Cluster
+        namespace: fleet-default
+        name: "{{ item }}"
+      register: etat
+      until: (etat.resources[0].status.ready | default(false)) | bool
+      retries: 60
+      delay: 30
+      loop: "{{ inventaire.clusters.keys() | list }}"
+
+    - name: Clusters vus par Fleet
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ rancher_kubeconfig_chemin }}"
+        api_version: fleet.cattle.io/v1alpha1
+        kind: Cluster
+        namespace: fleet-default
+      register: fleet_clusters
+
+    - name: Bundles du socle
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ rancher_kubeconfig_chemin }}"
+        api_version: fleet.cattle.io/v1alpha1
+        kind: Bundle
+        namespace: fleet-default
+      register: bundles
+
+    - name: Résumé
+      ansible.builtin.debug:
+        msg:
+          clusters_fleet: >-
+            {{ fleet_clusters.resources | map(attribute='metadata.name') |
+               zip(fleet_clusters.resources | map(attribute='metadata.labels', default={})) | list }}
+          bundles: >-
+            {{ bundles.resources | map(attribute='metadata.name') |
+               zip(bundles.resources | map(attribute='status.display.state', default='?')) | list }}
+          interface_rancher: "https://{{ rancher_hostname }}"

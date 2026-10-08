@@ -1,0 +1,28 @@
+# Détruit TOUTE l'infrastructure d'un environnement (instances, VPC, NAT).
+# Irréversible. Exige de retaper le nom de l'environnement (champ « confirmation » du formulaire).
+
+- name: Détruire l'environnement
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    tf_dir: "{{ playbook_dir }}/../../terraform/environnement"
+  tasks:
+    - name: Exiger la confirmation
+      ansible.builtin.assert:
+        that:
+          - environnement is defined
+          - confirmation is defined
+          - confirmation == environnement
+        fail_msg: "Confirmation refusée : retapez exactement « {{ environnement | default('?') }} »."
+
+    - name: terraform destroy
+      cloud.terraform.terraform:
+        project_path: "{{ tf_dir }}"
+        state: absent
+        force_init: true
+        init_reconfigure: true
+        backend_config_files:
+          - "{{ tf_dir }}/backends/{{ environnement }}.hcl"
+        variables_files:
+          - "{{ tf_dir }}/envs/{{ environnement }}.tfvars"

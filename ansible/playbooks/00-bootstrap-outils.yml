@@ -1,0 +1,33 @@
+# ÉTAPE 0 — lancée UNE fois depuis votre poste, après « terraform apply » dans terraform/outils :
+#   ansible-playbook -i <IP_PUBLIQUE_ASCENDER>, -u ubuntu playbooks/00-bootstrap-outils.yml
+#
+# Prépare l'instance Ascender puis récupère l'installateur officiel d'Ascender (CIQ).
+# L'installation elle-même se fait avec cet installateur : sa configuration évolue
+# d'une version à l'autre, suivez le README du dépôt cloné.
+
+- name: Préparer l'instance Ascender
+  hosts: all
+  become: true
+  roles:
+    - os_base
+  tasks:
+    - name: Paquets pour l'installateur
+      ansible.builtin.apt:
+        name: [git, python3-pip]
+        state: present
+
+    - name: Récupérer l'installateur Ascender
+      ansible.builtin.git:
+        repo: https://github.com/ctrliq/ascender-install.git
+        dest: /opt/ascender-install
+        version: main
+        update: false
+
+    - name: Étape suivante
+      ansible.builtin.debug:
+        msg:
+          - "Connectez-vous : ssh ubuntu@{{ ansible_host | default(inventory_hostname) }}"
+          - "cd /opt/ascender-install"
+          - "Choisissez le type d'installation K3s (Kubernetes mono-nœud installé pour vous),"
+          - "renseignez le fichier de configuration indiqué dans le README, puis lancez le script d'installation."
+          - "Ensuite, depuis votre poste : ansible-playbook ascender/configuration/configurer-ascender.yml"

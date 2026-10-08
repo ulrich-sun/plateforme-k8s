@@ -1,0 +1,10 @@
+# Couche 1 : socle OS commun à toutes les machines (Rancher et nœuds).
+
+- name: Charger l'inventaire
+  ansible.builtin.import_playbook: _charger-inventaire.yml
+
+- name: Préparer le système d'exploitation
+  hosts: rancher_server:k8s_nodes
+  become: true
+  roles:
+    - os_base

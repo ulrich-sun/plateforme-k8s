@@ -1,0 +1,37 @@
+# Kargo : promotion des applications entre étapes (s'appuie sur Argo CD).
+defaultNamespace: kargo
+
+labels:
+  composant: kargo
+
+dependsOn:
+  - selector:
+      matchLabels:
+        composant: argocd
+  - selector:
+      matchLabels:
+        composant: cert-manager
+
+helm:
+  releaseName: kargo
+  chart: oci://ghcr.io/akuity/kargo-charts/kargo
+  # version: "X.Y.Z"   # À ÉPINGLER
+  # Kargo exige un mot de passe admin (haché) et une clé de signature : JAMAIS dans Git.
+  # Fleet les lit dans un Secret présent sur le cluster cible :
+  #   kubectl -n kargo create secret generic kargo-valeurs --from-file=values.yaml
+  # avec values.yaml contenant api.adminAccount.passwordHash et api.adminAccount.tokenSigningKey.
+  # En entreprise : créer ce Secret avec External Secrets + AWS Secrets Manager (voir README).
+  valuesFrom:
+    - secretKeyRef:
+        name: kargo-valeurs
+        namespace: kargo
+        key: values.yaml
+
+targetCustomizations:
+  - name: cluster-outils
+    clusterSelector:
+      matchLabels:
+        kargo: "true"
+  - name: ailleurs
+    clusterSelector: {}
+    doNotDeploy: true

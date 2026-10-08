@@ -1,0 +1,21 @@
+# Déclare chaque cluster dans Rancher, puis récupère sa commande d'enregistrement.
+# Méthode : on écrit directement l'objet Kubernetes « Cluster » (provisioning.cattle.io/v1)
+# dans le cluster local de Rancher. C'est exactement ce que fait l'interface quand on clique
+# « Créer > Custom ».
+
+- name: URL publique de Rancher (utilisée dans les commandes d'enregistrement)
+  kubernetes.core.k8s:
+    kubeconfig: "{{ rancher_kubeconfig_chemin }}"
+    state: patched
+    api_version: management.cattle.io/v3
+    kind: Setting
+    name: server-url
+    definition:
+      value: "https://{{ rancher_hostname }}"
+
+- name: Déclarer chaque cluster
+  ansible.builtin.include_tasks: un-cluster.yml
+  loop: "{{ inventaire.clusters | dict2items }}"
+  loop_control:
+    loop_var: cluster
+    label: "{{ cluster.key }}"

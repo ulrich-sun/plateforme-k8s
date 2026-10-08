@@ -1,0 +1,36 @@
+# Image dans laquelle Ascender exécute les jobs : Ansible + collections + terraform/helm/kubectl.
+# Construction :
+#   pip install ansible-builder
+#   ansible-builder build -t registre.mondomaine.com/plateforme/ee:1.0.0
+#   podman push registre.mondomaine.com/plateforme/ee:1.0.0
+# (sur AWS, un dépôt ECR convient : ajoutez un credential « Container Registry » dans Ascender)
+version: 3
+
+images:
+  base_image:
+    # Image de base compatible AWX/Ascender. Vérifiez celle recommandée par votre version d'Ascender.
+    name: quay.io/ansible/awx-ee:latest
+
+dependencies:
+  galaxy: requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+
+additional_build_steps:
+  append_final:
+    - USER root
+    - ARG TERRAFORM_VERSION=1.12.2
+    - >-
+      RUN curl -fsSL -o /tmp/tf.zip
+      https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+      && python3 -m zipfile -e /tmp/tf.zip /usr/local/bin/
+      && chmod 0755 /usr/local/bin/terraform && rm -f /tmp/tf.zip
+    - >-
+      RUN curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+      | HELM_INSTALL_DIR=/usr/local/bin bash
+    - >-
+      RUN curl -fsSL -o /usr/local/bin/kubectl
+      "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      && chmod 0755 /usr/local/bin/kubectl
+    - RUN terraform version && helm version && kubectl version --client
+    - USER 1000

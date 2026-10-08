@@ -1,0 +1,34 @@
+# Prometheus + Alertmanager + Grafana + exporters.
+defaultNamespace: monitoring
+
+labels:
+  composant: monitoring
+
+helm:
+  releaseName: monitoring
+  repo: https://prometheus-community.github.io/helm-charts
+  chart: kube-prometheus-stack
+  # version: "X.Y.Z"   # À ÉPINGLER : helm search repo prometheus-community/kube-prometheus-stack
+  values:
+    grafana:
+      ingress:
+        enabled: true
+        ingressClassName: traefik
+        hosts:
+          - "grafana.${ .ClusterLabels.domaine }"   # résolu par Fleet, cluster par cluster
+    prometheus:
+      prometheusSpec:
+        retention: 3d
+        # Sans stockage persistant, les métriques sont perdues au redémarrage du pod.
+        # Pour la prod : installer le pilote EBS CSI et définir un storageSpec.
+
+targetCustomizations:
+  - name: prod
+    clusterSelector:
+      matchLabels:
+        env: prod
+    helm:
+      values:
+        prometheus:
+          prometheusSpec:
+            retention: 15d

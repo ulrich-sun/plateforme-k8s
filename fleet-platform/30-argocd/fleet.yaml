@@ -1,0 +1,52 @@
+# Argo CD : déploie les APPLICATIONS des équipes (le socle, lui, est géré par Fleet).
+defaultNamespace: argocd
+
+labels:
+  composant: argocd
+
+dependsOn:
+  - selector:
+      matchLabels:
+        composant: cert-manager
+  - selector:
+      matchLabels:
+        composant: traefik
+
+helm:
+  releaseName: argocd
+  repo: https://argoproj.github.io/argo-helm
+  chart: argo-cd
+  # version: "X.Y.Z"   # À ÉPINGLER : helm search repo argo/argo-cd
+  values:
+    configs:
+      params:
+        server.insecure: true   # TLS terminé par Traefik
+    server:
+      ingress:
+        enabled: true
+        ingressClassName: traefik
+        hostname: "argocd.${ .ClusterLabels.domaine }"
+
+# Argo CD seulement là où Kargo est centralisé (étiquette kargo=true, posée dans les tfvars).
+# La première règle qui correspond gagne : les autres clusters tombent sur doNotDeploy.
+targetCustomizations:
+  - name: cluster-outils-prod
+    clusterSelector:
+      matchLabels:
+        kargo: "true"
+        env: prod
+    helm:
+      values:
+        controller:
+          replicas: 1
+        server:
+          replicas: 2
+        repoServer:
+          replicas: 2
+  - name: cluster-outils
+    clusterSelector:
+      matchLabels:
+        kargo: "true"
+  - name: ailleurs
+    clusterSelector: {}
+    doNotDeploy: true

@@ -1,0 +1,69 @@
+# Importé au début de chaque playbook.
+# Lit la sortie « inventaire » de Terraform et construit l'inventaire en mémoire :
+#   rancher_server              l'instance Rancher de l'environnement
+#   k8s_nodes                   tous les nœuds
+#   cluster_<nom>               les nœuds d'un cluster
+#   role_controlplane / role_worker
+#
+# Terraform est la seule source de vérité : aucun fichier d'inventaire à maintenir à la main.
+
+- name: Charger l'inventaire depuis l'état Terraform
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    tf_dir: "{{ playbook_dir }}/../../terraform/environnement"
+  tasks:
+    - name: Vérifier la variable environnement
+      ansible.builtin.assert:
+        that: environnement is defined and environnement in ['unitaire', 'prod']
+        fail_msg: "Passez -e environnement=unitaire ou -e environnement=prod"
+
+    - name: Initialiser Terraform sur le backend de l'environnement
+      ansible.builtin.command:
+        cmd: terraform init -input=false -reconfigure -backend-config=backends/{{ environnement }}.hcl
+        chdir: "{{ tf_dir }}"
+      changed_when: false
+
+    - name: Lire la sortie « inventaire »
+      ansible.builtin.command:
+        cmd: terraform output -json inventaire
+        chdir: "{{ tf_dir }}"
+      register: tf_sortie
+      changed_when: false
+
+    - name: Mémoriser l'inventaire
+      ansible.builtin.set_fact:
+        inventaire: "{{ tf_sortie.stdout | from_json }}"
+        noeuds: >-
+          {%- set l = [] -%}
+          {%- for nom_cluster, c in (tf_sortie.stdout | from_json).clusters.items() -%}
+            {%- for n in c.noeuds -%}
+              {%- set _ = l.append(n | combine({'cluster': nom_cluster})) -%}
+            {%- endfor -%}
+          {%- endfor -%}
+          {{ l }}
+
+    - name: Ajouter l'instance Rancher
+      ansible.builtin.add_host:
+        name: "{{ inventaire.rancher.nom }}"
+        ansible_host: "{{ inventaire.rancher.ip }}"
+        ansible_user: ubuntu
+        groups: [rancher_server]
+      changed_when: false
+
+    - name: Ajouter les nœuds Kubernetes
+      ansible.builtin.add_host:
+        name: "{{ item.nom }}"
+        ansible_host: "{{ item.ip }}"
+        ansible_user: ubuntu
+        cluster_name: "{{ item.cluster }}"
+        rke2_role: "{{ item.role }}"
+        groups:
+          - k8s_nodes
+          - "cluster_{{ item.cluster }}"
+          - "role_{{ item.role }}"
+      loop: "{{ noeuds }}"
+      loop_control:
+        label: "{{ item.nom }} ({{ item.cluster }}, {{ item.role }})"
+      changed_when: false

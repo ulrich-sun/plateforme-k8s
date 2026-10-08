@@ -1,0 +1,14 @@
+# Certificats TLS : prérequis de Traefik (certificats), d'Argo CD et de Kargo (webhooks).
+defaultNamespace: cert-manager
+
+labels:
+  composant: cert-manager   # utilisé par les dependsOn des autres bundles
+
+helm:
+  releaseName: cert-manager
+  repo: https://charts.jetstack.io
+  chart: cert-manager
+  # version: "vX.Y.Z"   # À ÉPINGLER : helm search repo jetstack/cert-manager
+  values:
+    crds:
+      enabled: true

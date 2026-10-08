@@ -1,0 +1,32 @@
+# Le point d'entrée de Fleet : un GitRepo dans fleet-default qui pointe vers le socle.
+# - unitaire : suit une BRANCHE (main)  → chaque commit est déployé
+# - prod     : suit un TAG (revision)    → seul un tag explicite est déployé
+# Tout cluster de ce Rancher reçoit le socle ; les différences passent par les étiquettes.
+
+- name: Vérifier qu'une seule référence Git est donnée
+  ansible.builtin.assert:
+    that: (fleet_platform_branch | length > 0) != (fleet_platform_revision | length > 0)
+    fail_msg: "Renseignez soit fleet_platform_branch, soit fleet_platform_revision (pas les deux)."
+
+- name: GitRepo du socle de plateforme
+  kubernetes.core.k8s:
+    kubeconfig: "{{ rancher_kubeconfig_chemin }}"
+    state: present
+    definition:
+      apiVersion: fleet.cattle.io/v1alpha1
+      kind: GitRepo
+      metadata:
+        name: socle-plateforme
+        namespace: fleet-default
+      spec: >-
+        {{
+          {
+            'repo': fleet_platform_repo,
+            'paths': ['fleet-platform'],
+            'pollingInterval': '60s',
+            'targets': [{'name': 'tous-les-clusters', 'clusterSelector': {}}]
+          }
+          | combine({'branch': fleet_platform_branch} if fleet_platform_branch | length > 0 else {})
+          | combine({'revision': fleet_platform_revision} if fleet_platform_revision | length > 0 else {})
+        }}
+    # Dépôt privé : créer un secret d'accès et ajouter 'clientSecretName' au spec.

@@ -1,0 +1,22 @@
+# Paramètres de l'environnement UNITAIRE.
+# La forme des machines et des clusters vient de Terraform (envs/unitaire.tfvars) ;
+# ici, uniquement ce qui concerne les logiciels installés dessus.
+
+# --- Rancher de l'environnement ---
+# sslip.io résout rancher-unitaire.10.20.1.10.sslip.io → 10.20.1.10 sans configurer de DNS.
+# En entreprise : remplacez par un vrai nom (ex. rancher-dev.mondomaine.com) et un vrai certificat.
+rancher_hostname: "rancher-unitaire.{{ inventaire.rancher.ip }}.sslip.io"
+rancher_chart_version: ""          # vide = dernière stable ; À ÉPINGLER (helm search repo rancher-stable/rancher)
+cert_manager_chart_version: ""     # À ÉPINGLER
+rke2_mgmt_channel: stable          # version RKE2 du cluster qui héberge Rancher
+
+# --- Clusters gérés par ce Rancher ---
+# Doit faire partie des versions proposées par VOTRE version de Rancher
+# (interface Rancher > Créer un cluster > Custom > liste « Kubernetes Version »).
+cluster_kubernetes_version: "v1.33.5+rke2r1"   # À ADAPTER
+
+# --- Fleet : quelle version du socle cet environnement suit-il ? ---
+# L'unitaire suit la branche principale : chaque commit est déployé tout de suite.
+fleet_platform_repo: "https://github.com/MON-ORG/plateforme-k8s.git"   # À ADAPTER
+fleet_platform_branch: main
+fleet_platform_revision: ""

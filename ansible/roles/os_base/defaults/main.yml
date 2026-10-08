@@ -1,0 +1,9 @@
+os_base_paquets:
+  - curl
+  - ca-certificates
+  - jq
+  - chrony          # horloge synchronisée : indispensable pour etcd et les certificats
+  - open-iscsi      # requis par Longhorn si vous l'ajoutez plus tard
+  - nfs-common
+  - apparmor
+os_base_fuseau: America/Toronto

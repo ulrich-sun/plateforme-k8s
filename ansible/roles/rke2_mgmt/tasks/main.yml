@@ -1,0 +1,65 @@
+# RKE2 mono-nœud sur l'instance Rancher : c'est le cluster « local » qui héberge Rancher.
+# Uniquement pour Rancher : les clusters métier, eux, sont installés PAR Rancher.
+
+- name: Répertoire de configuration RKE2
+  ansible.builtin.file:
+    path: /etc/rancher/rke2
+    state: directory
+    mode: "0755"
+
+- name: Configuration RKE2
+  ansible.builtin.copy:
+    dest: /etc/rancher/rke2/config.yaml
+    mode: "0600"
+    content: |
+      write-kubeconfig-mode: "0600"
+      tls-san:
+        - {{ rancher_hostname }}
+        - {{ ansible_host }}
+      node-name: {{ inventory_hostname }}
+  notify: Redémarrer rke2-server
+
+- name: Télécharger l'installateur RKE2
+  ansible.builtin.get_url:
+    url: https://get.rke2.io
+    dest: /tmp/install-rke2.sh
+    mode: "0755"
+
+- name: Installer RKE2
+  ansible.builtin.command:
+    cmd: /tmp/install-rke2.sh
+    creates: /usr/local/bin/rke2
+  environment:
+    INSTALL_RKE2_CHANNEL: "{{ rke2_mgmt_channel }}"
+
+- name: Démarrer RKE2
+  ansible.builtin.systemd_service:
+    name: rke2-server
+    state: started
+    enabled: true
+
+- name: Attendre le kubeconfig
+  ansible.builtin.wait_for:
+    path: /etc/rancher/rke2/rke2.yaml
+    timeout: 600
+
+- name: Rendre kubectl accessible
+  ansible.builtin.file:
+    src: /var/lib/rancher/rke2/bin/kubectl
+    dest: /usr/local/bin/kubectl
+    state: link
+
+- name: Attendre que le nœud soit prêt
+  ansible.builtin.command: kubectl get nodes --no-headers
+  environment:
+    KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+  register: noeud
+  until: "' Ready ' in noeud.stdout"
+  retries: 40
+  delay: 15
+  changed_when: false
+
+- name: Installer Helm
+  ansible.builtin.shell:
+    cmd: curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    creates: /usr/local/bin/helm

@@ -1,0 +1,7 @@
+# Même liste que ansible/requirements.yml (+ awx.awx pour la configuration d'Ascender en code)
+collections:
+  - name: cloud.terraform
+  - name: kubernetes.core
+  - name: community.general
+  - name: ansible.posix
+  - name: awx.awx

@@ -1,0 +1,33 @@
+apiVersion: provisioning.cattle.io/v1
+kind: Cluster
+metadata:
+  name: {{ cluster.key }}
+  namespace: fleet-default
+  # Ces étiquettes sont recopiées sur le cluster Fleet : c'est elles que le socle cible.
+  # env vient de l'environnement ; les autres viennent des tfvars Terraform.
+  labels:
+{% for cle, valeur in ({'env': environnement} | combine(cluster.value.labels)).items() %}
+    {{ cle }}: "{{ valeur }}"
+{% endfor %}
+spec:
+  kubernetesVersion: {{ cluster_kubernetes_version }}
+  rkeConfig:
+    machineGlobalConfig:
+      # Le CNI se choisit ICI, à la création : Fleet ne peut pas l'installer
+      # (sans réseau de pods, l'agent Fleet ne démarre même pas).
+      cni: cilium
+      # Traefik est installé par Fleet : on retire l'ingress fourni par RKE2.
+      # Selon la version de RKE2, le composant peut s'appeler rke2-ingress-nginx ou rke2-traefik.
+      disable:
+        - rke2-ingress-nginx
+    chartValues:
+      rke2-cilium:
+        hubble:
+          enabled: true
+          relay:
+            enabled: true
+          ui:
+            enabled: true
+    upgradeStrategy:
+      controlPlaneConcurrency: "1"
+      workerConcurrency: "1"

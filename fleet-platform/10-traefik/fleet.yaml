@@ -1,0 +1,48 @@
+# Contrôleur d'entrée (ingress) : expose les services HTTP(S) des clusters.
+defaultNamespace: traefik
+
+labels:
+  composant: traefik
+
+dependsOn:
+  - selector:
+      matchLabels:
+        composant: cert-manager
+
+helm:
+  releaseName: traefik
+  repo: https://traefik.github.io/charts
+  chart: traefik
+  # version: "X.Y.Z"   # À ÉPINGLER : helm search repo traefik/traefik
+  values:
+    # Pas de load balancer AWS dans ce socle : Traefik écoute directement sur les ports 80/443
+    # des workers. Pour la prod, préférez un NLB AWS devant les workers (voir README).
+    deployment:
+      kind: DaemonSet
+    nodeSelector:
+      node-role.kubernetes.io/worker: "true"
+    ports:
+      web:
+        hostPort: 80
+      websecure:
+        hostPort: 443
+    service:
+      type: ClusterIP
+    ingressClass:
+      enabled: true
+      isDefaultClass: true
+    providers:
+      kubernetesIngress:
+        enabled: true
+
+targetCustomizations:
+  - name: prod
+    clusterSelector:
+      matchLabels:
+        env: prod
+    helm:
+      values:
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi

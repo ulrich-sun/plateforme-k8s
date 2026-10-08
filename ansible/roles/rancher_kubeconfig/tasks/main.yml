@@ -1,0 +1,24 @@
+# Récupère le kubeconfig du cluster « local » de Rancher pour piloter Rancher par son API
+# Kubernetes (clusters, GitRepos Fleet...) depuis le conteneur d'exécution d'Ascender.
+# Fichier temporaire : il disparaît avec le conteneur à la fin du job.
+
+- name: Lire le kubeconfig sur l'instance Rancher
+  ansible.builtin.slurp:
+    src: /etc/rancher/rke2/rke2.yaml
+  delegate_to: "{{ groups['rancher_server'][0] }}"
+  become: true
+  register: kubeconfig_brut
+  no_log: true
+
+- name: Répertoire local
+  ansible.builtin.file:
+    path: "{{ rancher_kubeconfig_chemin | dirname }}"
+    state: directory
+    mode: "0700"
+
+- name: Écrire le kubeconfig en remplaçant 127.0.0.1 par l'IP de Rancher
+  ansible.builtin.copy:
+    dest: "{{ rancher_kubeconfig_chemin }}"
+    content: "{{ kubeconfig_brut.content | b64decode | replace('127.0.0.1', inventaire.rancher.ip) }}"
+    mode: "0600"
+  no_log: true

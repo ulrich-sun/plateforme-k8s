@@ -1,0 +1,40 @@
+- name: "Cluster {{ cluster.key }}"
+  kubernetes.core.k8s:
+    kubeconfig: "{{ rancher_kubeconfig_chemin }}"
+    state: present
+    template: cluster.yaml.j2
+
+- name: "Attendre l'identifiant interne de {{ cluster.key }}"
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ rancher_kubeconfig_chemin }}"
+    api_version: provisioning.cattle.io/v1
+    kind: Cluster
+    namespace: fleet-default
+    name: "{{ cluster.key }}"
+  register: cluster_cree
+  until: cluster_cree.resources[0].status.clusterName is defined
+  retries: 30
+  delay: 5
+
+# Rancher crée un jeton d'enregistrement dans le namespace c-m-xxxxx du cluster
+- name: "Commande d'enregistrement de {{ cluster.key }}"
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ rancher_kubeconfig_chemin }}"
+    api_version: management.cattle.io/v3
+    kind: ClusterRegistrationToken
+    namespace: "{{ cluster_cree.resources[0].status.clusterName }}"
+  register: jeton
+  until: >-
+    jeton.resources | length > 0 and
+    (jeton.resources | map(attribute='status.nodeCommand', default='') | select | list | length > 0)
+  retries: 30
+  delay: 5
+  no_log: true
+
+- name: Mémoriser la commande
+  ansible.builtin.set_fact:
+    commandes_enregistrement: >-
+      {{ commandes_enregistrement | default({}) | combine({
+           cluster.key: (jeton.resources | map(attribute='status.nodeCommand', default='') | select | first)
+         }) }}
+  no_log: true

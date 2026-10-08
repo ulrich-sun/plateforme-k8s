@@ -1,0 +1,27 @@
+# Couche 2a : RKE2 + cert-manager + Rancher sur l'instance Rancher,
+# puis le GitRepo Fleet qui pointe vers le socle (fleet-platform/).
+# Relancer ce playbook = mettre à jour Rancher ou changer la version du socle suivie.
+
+- name: Charger l'inventaire
+  ansible.builtin.import_playbook: _charger-inventaire.yml
+
+- name: Installer Rancher
+  hosts: rancher_server
+  become: true
+  vars_files:
+    - "../config/{{ environnement }}.yml"
+  vars:
+    inventaire: "{{ hostvars['localhost'].inventaire }}"
+  roles:
+    - rke2_mgmt
+    - rancher_server
+
+- name: Brancher Fleet sur le dépôt du socle
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../config/{{ environnement }}.yml"
+  roles:
+    - rancher_kubeconfig
+    - fleet_gitrepo

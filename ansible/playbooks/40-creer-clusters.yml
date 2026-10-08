@@ -1,0 +1,23 @@
+# Couche 2b : crée chaque cluster dans Rancher (avec Cilium et ses étiquettes),
+# puis enregistre les nœuds. Rancher installe ensuite RKE2 lui-même sur les nœuds.
+
+- name: Charger l'inventaire
+  ansible.builtin.import_playbook: _charger-inventaire.yml
+
+- name: Déclarer les clusters dans Rancher
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../config/{{ environnement }}.yml"
+  roles:
+    - rancher_kubeconfig
+    - rancher_cluster
+
+- name: Enregistrer les nœuds auprès de Rancher
+  hosts: k8s_nodes
+  become: true
+  # Tous les nœuds en parallèle : un worker enregistré avant son control plane
+  # attend simplement (l'agent de Rancher réessaie jusqu'à ce que le control plane soit prêt).
+  roles:
+    - rancher_node_register

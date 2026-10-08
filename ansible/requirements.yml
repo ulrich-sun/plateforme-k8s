@@ -1,0 +1,6 @@
+# Collections Ansible utilisées par les playbooks (installées dans l'Execution Environment)
+collections:
+  - name: cloud.terraform
+  - name: kubernetes.core
+  - name: community.general
+  - name: ansible.posix

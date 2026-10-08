@@ -1,0 +1,6 @@
+- name: Redémarrer rke2-server
+  ansible.builtin.systemd_service:
+    name: rke2-server
+    state: restarted
+  # Au premier passage le service n'existe pas encore : on ignore
+  failed_when: false

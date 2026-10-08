@@ -1,0 +1,15 @@
+# Paramètres de l'environnement PROD.
+
+rancher_hostname: "rancher-prod.{{ inventaire.rancher.ip }}.sslip.io"
+rancher_chart_version: ""          # À ÉPINGLER, et toujours APRÈS validation en unitaire
+cert_manager_chart_version: ""     # À ÉPINGLER
+rke2_mgmt_channel: stable
+
+cluster_kubernetes_version: "v1.33.5+rke2r1"   # À ADAPTER
+
+# La prod suit un TAG : rien n'arrive en prod sans qu'on ait créé un tag.
+# Promotion du socle : valider en unitaire → git tag plateforme-v1.1.0 → modifier cette ligne
+# → relancer « [prod] 30 - Installer Rancher » (qui met à jour le GitRepo).
+fleet_platform_repo: "https://github.com/MON-ORG/plateforme-k8s.git"   # À ADAPTER
+fleet_platform_branch: ""
+fleet_platform_revision: "plateforme-v1.0.0"

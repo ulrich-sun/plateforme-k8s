@@ -1,0 +1,41 @@
+# Couche 0 : crée (ou met à jour) le réseau et les instances EC2 de l'environnement.
+# Idempotent : relancé sans changement dans les tfvars, il ne fait rien.
+
+- name: Provisionner l'infrastructure AWS
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    tf_dir: "{{ playbook_dir }}/../../terraform/environnement"
+  tasks:
+    - name: Vérifier la variable environnement
+      ansible.builtin.assert:
+        that: environnement is defined and environnement in ['unitaire', 'prod']
+
+    - name: terraform apply
+      cloud.terraform.terraform:
+        project_path: "{{ tf_dir }}"
+        state: present
+        force_init: true
+        init_reconfigure: true
+        backend_config_files:
+          - "{{ tf_dir }}/backends/{{ environnement }}.hcl"
+        variables_files:
+          - "{{ tf_dir }}/envs/{{ environnement }}.tfvars"
+      register: tf
+
+    - name: Résumé
+      ansible.builtin.debug:
+        msg: "{{ tf.outputs.inventaire.value }}"
+
+- name: Recharger l'inventaire
+  ansible.builtin.import_playbook: _charger-inventaire.yml
+
+- name: Attendre que les instances répondent en SSH
+  hosts: rancher_server:k8s_nodes
+  gather_facts: false
+  tasks:
+    - name: Attendre SSH (premier démarrage, cloud-init)
+      ansible.builtin.wait_for_connection:
+        delay: 10
+        timeout: 600

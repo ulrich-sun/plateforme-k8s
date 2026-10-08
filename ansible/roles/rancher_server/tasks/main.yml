@@ -1,0 +1,54 @@
+# cert-manager puis Rancher, via Helm, sur le cluster RKE2 local.
+# rancher_bootstrap_password est injecté par le credential « Rancher » d'Ascender.
+
+- name: Vérifier le mot de passe initial
+  ansible.builtin.assert:
+    that: rancher_bootstrap_password is defined and rancher_bootstrap_password | length >= 12
+    fail_msg: "rancher_bootstrap_password manquant (credential Rancher dans Ascender), 12 caractères minimum."
+
+- name: Dépôts Helm
+  kubernetes.core.helm_repository:
+    name: "{{ item.nom }}"
+    repo_url: "{{ item.url }}"
+  loop:
+    - { nom: jetstack, url: "https://charts.jetstack.io" }
+    - { nom: rancher-stable, url: "https://releases.rancher.com/server-charts/stable" }
+
+- name: cert-manager (certificats de Rancher)
+  kubernetes.core.helm:
+    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    name: cert-manager
+    chart_ref: jetstack/cert-manager
+    chart_version: "{{ cert_manager_chart_version | default(omit, true) }}"
+    release_namespace: cert-manager
+    create_namespace: true
+    update_repo_cache: true
+    wait: true
+    values:
+      crds:
+        enabled: true
+
+- name: Rancher
+  kubernetes.core.helm:
+    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    name: rancher
+    chart_ref: rancher-stable/rancher
+    chart_version: "{{ rancher_chart_version | default(omit, true) }}"
+    release_namespace: cattle-system
+    create_namespace: true
+    wait: true
+    timeout: 15m
+    values:
+      hostname: "{{ rancher_hostname }}"
+      bootstrapPassword: "{{ rancher_bootstrap_password }}"
+      replicas: 1   # 1 seul nœud ; 3 en haute disponibilité
+  no_log: true
+
+- name: Attendre que Rancher réponde
+  ansible.builtin.uri:
+    url: "https://{{ rancher_hostname }}/healthz"
+    validate_certs: false
+  register: sante
+  until: sante.status == 200
+  retries: 40
+  delay: 15
