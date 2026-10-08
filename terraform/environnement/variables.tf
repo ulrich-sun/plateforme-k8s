@@ -35,9 +35,9 @@ variable "tailles" {
     disk_gb       = number
   }))
   default = {
-    rancher      = { instance_type = "t3.xlarge", disk_gb = 80 } # 4 vCPU / 16 Go
-    controlplane = { instance_type = "t3.large", disk_gb = 60 }  # 2 vCPU / 8 Go
-    worker       = { instance_type = "t3.xlarge", disk_gb = 100 }
+    rancher      = { instance_type = "t3.medium", disk_gb = 50 } # 4 vCPU / 16 Go
+    controlplane = { instance_type = "t3.medium", disk_gb = 50 }  # 2 vCPU / 8 Go
+    worker       = { instance_type = "t3.medium", disk_gb = 100 }
   }
 }
 
