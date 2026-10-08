@@ -117,7 +117,7 @@ resource "aws_security_group" "ascender" {
 
 resource "aws_instance" "ascender" {
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.xlarge" # 4 vCPU / 16 Go : confortable pour Ascender sur K3s
+  instance_type          = "t3.medium" # 4 vCPU / 16 Go : confortable pour Ascender sur K3s
   subnet_id              = aws_subnet.public.id
   private_ip             = cidrhost(cidrsubnet(var.vpc_cidr, 8, 0), 10)
   vpc_security_group_ids = [aws_security_group.ascender.id]
