@@ -71,8 +71,8 @@ Prérequis : AWS CLI configuré, Terraform ≥ 1.10, Ansible.
 
 ```bash
 # a) Bucket pour les états Terraform (nom unique au monde)
-aws s3api create-bucket --bucket plateforme-k8s-tfstate-XXXX --region ca-central-1 \
-  --create-bucket-configuration LocationConstraint=ca-central-1
+aws s3api create-bucket --bucket plateforme-k8s-tfstate-XXXX --region us-east-1 \
+  --create-bucket-configuration LocationConstraint=us-east-1
 aws s3api put-bucket-versioning --bucket plateforme-k8s-tfstate-XXXX \
   --versioning-configuration Status=Enabled
 # → reportez ce nom dans terraform/environnement/backends/*.hcl
@@ -86,7 +86,7 @@ ssh-keygen -t ed25519 -f ascender-prod -N ""     && aws ec2 import-key-pair --ke
 # c) VPC outils + instance Ascender
 cd terraform/outils
 cp outils.tfvars.example outils.tfvars   # mettez votre IP
-terraform init -backend-config="bucket=plateforme-k8s-tfstate-XXXX" -backend-config="region=ca-central-1"
+terraform init -backend-config="bucket=plateforme-k8s-tfstate-XXXX" -backend-config="region=us-east-1"
 terraform apply -var-file=outils.tfvars
 
 # d) Préparer l'instance et récupérer l'installateur Ascender

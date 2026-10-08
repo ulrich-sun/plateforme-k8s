@@ -1,11 +1,11 @@
 environnement = "unitaire"
-aws_region    = "ca-central-1"
+aws_region    = "us-east-1"
 
 reseau = {
   vpc_cidr           = "10.20.0.0/16"
   subnet_public_cidr = "10.20.0.0/24"
   subnet_prive_cidr  = "10.20.1.0/24"
-  zone               = "ca-central-1a"
+  zone               = "us-east-1a"
 }
 
 ssh_key_name = "ascender-unitaire" # paire de clés EC2 à créer avant (voir README)

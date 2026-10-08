@@ -20,11 +20,11 @@ terraform {
 
 variable "aws_region" {
   type    = string
-  default = "ca-central-1"
+  default = "us-east-1"
 }
 variable "zone" {
   type    = string
-  default = "ca-central-1a"
+  default = "us-east-1a"
 }
 variable "vpc_cidr" {
   type    = string
