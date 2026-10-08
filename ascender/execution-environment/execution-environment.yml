@@ -1,0 +1,40 @@
+# Image dans laquelle Ascender exécute nos jobs :
+# l'EE officiel d'Ascender + nos collections + terraform, helm et kubectl.
+#
+# Construite AUTOMATIQUEMENT par GitHub Actions (.github/workflows/execution-environment.yml)
+# à chaque modification de ce dossier, et publiée sur ghcr.io/<compte>/plateforme-ee:<VERSION>.
+# Pour une nouvelle version : modifier ce dossier ET incrémenter le fichier VERSION.
+version: 3
+
+images:
+  base_image:
+    # Même version que l'Ascender installé : tout est épinglé, rien ne bouge tout seul.
+    name: ghcr.io/ctrliq/ascender-ee:25.6.2
+
+dependencies:
+  galaxy: requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+
+additional_build_steps:
+  append_final:
+    - USER root
+    - ARG TERRAFORM_VERSION=1.12.2
+    - ARG HELM_VERSION=v3.18.4
+    - ARG KUBECTL_VERSION=v1.33.4
+    - >-
+      RUN curl -fsSL -o /tmp/tf.zip
+      https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+      && python3 -m zipfile -e /tmp/tf.zip /usr/local/bin/
+      && chmod 0755 /usr/local/bin/terraform && rm -f /tmp/tf.zip
+    - >-
+      RUN curl -fsSL https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz
+      | tar -xz -C /tmp && mv /tmp/linux-amd64/helm /usr/local/bin/helm
+      && chmod 0755 /usr/local/bin/helm && rm -rf /tmp/linux-amd64
+    - >-
+      RUN curl -fsSL -o /usr/local/bin/kubectl
+      https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
+      && chmod 0755 /usr/local/bin/kubectl
+    # Échoue la construction si un outil manque : on le découvre ici, pas pendant un job
+    - RUN terraform version && helm version --short && kubectl version --client
+    - USER 1000

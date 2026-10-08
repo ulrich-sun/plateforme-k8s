@@ -1,0 +1,66 @@
+# Construit et publie l'Execution Environment d'Ascender sur GHCR.
+# Se déclenche quand sa définition change, ou à la main (onglet Actions > Run workflow).
+name: Execution Environment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ascender/execution-environment/**"
+      - ".github/workflows/execution-environment.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write   # publier dans ghcr.io
+
+jobs:
+  construire:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ascender/execution-environment
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nom et version de l'image
+        id: image
+        run: |
+          echo "nom=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/plateforme-ee" >> "$GITHUB_OUTPUT"
+          echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Générer le Containerfile avec ansible-builder
+        run: |
+          pip install --quiet ansible-builder
+          ansible-builder create -f execution-environment.yml --output-filename Containerfile
+          echo "----- Containerfile généré -----"
+          cat context/Containerfile
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construire et publier
+        uses: docker/build-push-action@v6
+        with:
+          context: ascender/execution-environment/context
+          file: ascender/execution-environment/context/Containerfile
+          push: true
+          tags: |
+            ${{ steps.image.outputs.nom }}:${{ steps.image.outputs.version }}
+            ${{ steps.image.outputs.nom }}:sha-${{ github.sha }}
+
+      - name: Vérifier l'image publiée
+        run: |
+          IMG=${{ steps.image.outputs.nom }}:${{ steps.image.outputs.version }}
+          docker run --rm "$IMG" terraform version
+          docker run --rm "$IMG" helm version --short
+          docker run --rm "$IMG" kubectl version --client
+          docker run --rm "$IMG" ansible-galaxy collection list | grep -E "cloud.terraform|kubernetes.core|community.general|ansible.posix|awx.awx"
+          echo "Image prête : $IMG" >> "$GITHUB_STEP_SUMMARY"
