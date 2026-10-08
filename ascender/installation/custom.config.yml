@@ -1,0 +1,39 @@
+---
+# Configuration de l'installateur officiel d'Ascender (github.com/ctrliq/ascender-install),
+# basée sur son modèle docs/installation/k3s/k3s.default.config.yml (version 25.6.2).
+# Le mot de passe n'est JAMAIS ici : installer-ascender.sh le génère sur la machine.
+
+# --- Kubernetes : un K3s mono-nœud installé par l'installateur lui-même ---
+k8s_platform: k3s
+kube_install: true
+k8s_offline: false
+download_kubeconfig: true
+kubeapi_server_ip: "127.0.0.1"
+k3s_master_node_ip: "127.0.0.1"
+
+# --- Accès : HTTP, uniquement à travers un tunnel SSH (rien d'exposé sur Internet) ---
+k8s_lb_protocol: http
+tls_crt_path: "~/ascender.crt"
+tls_key_path: "~/ascender.key"
+use_etc_hosts: true
+
+tmp_dir: "{{ playbook_dir }}/../ascender_install_artifacts"
+
+# --- Ascender ---
+ASCENDER_HOSTNAME: ascender.lab.local
+ASCENDER_DOMAIN: lab.local
+ASCENDER_NAMESPACE: ascender
+ASCENDER_ADMIN_USER: admin
+ASCENDER_ADMIN_PASSWORD: "__MOT_DE_PASSE__"   # remplacé par installer-ascender.sh
+ASCENDER_IMAGE: ghcr.io/ctrliq/ascender
+ASCENDER_VERSION: 25.6.2                       # même version que l'installateur
+ASCENDER_OPERATOR_VERSION: 25.6.2
+ascender_replicas: 1
+ascender_garbage_collect_secrets: true
+ascender_image_pull_policy: IfNotPresent
+ascender_setup_playbooks: false                # pas de démos : on a nos propres playbooks
+
+# --- Ledger (analyse des journaux) : désactivé ---
+# Avec Ledger, la documentation demande 8 Go de RAM ; nos t3.medium en ont 4.
+LEDGER_INSTALL: false
+LEDGER_HOSTNAME: ledger.lab.local

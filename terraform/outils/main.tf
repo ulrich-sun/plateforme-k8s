@@ -117,24 +117,46 @@ resource "aws_security_group" "ascender" {
 
 resource "aws_instance" "ascender" {
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.medium" # 4 vCPU / 16 Go : confortable pour Ascender sur K3s
+  instance_type          = "t3.medium" # 2 vCPU / 4 Go : minimum pour Ascender, lancez un job à la fois
   subnet_id              = aws_subnet.public.id
   private_ip             = cidrhost(cidrsubnet(var.vpc_cidr, 8, 0), 10)
   vpc_security_group_ids = [aws_security_group.ascender.id]
   key_name               = var.ssh_key_name
 
   root_block_device {
-    volume_size = 80
+    volume_size = 40
     volume_type = "gp3"
     encrypted   = true
   }
   metadata_options {
     http_tokens = "required"
   }
+
+  # Au PREMIER démarrage, cloud-init dépose la configuration et lance l'installation d'Ascender.
+  # « terraform apply » suffit donc à obtenir un Ascender prêt (compter ~20 min après la création).
+  # Aucun secret ici : le mot de passe est généré sur la machine par le script.
+  user_data = <<-EOT
+    #cloud-config
+    write_files:
+      - path: /opt/plateforme/custom.config.yml
+        permissions: "0600"
+        encoding: b64
+        content: ${filebase64("${path.module}/../../ascender/installation/custom.config.yml")}
+      - path: /opt/plateforme/installer-ascender.sh
+        permissions: "0755"
+        encoding: b64
+        content: ${filebase64("${path.module}/../../ascender/installation/installer-ascender.sh")}
+    runcmd:
+      - sed -i 's/\r$//' /opt/plateforme/installer-ascender.sh
+      - bash /opt/plateforme/installer-ascender.sh
+  EOT
+
   tags = { Name = "ascender" }
 
   lifecycle {
-    ignore_changes = [ami]
+    # user_data ne s'exécute qu'au premier démarrage : le modifier ne doit pas
+    # redémarrer ni recréer une instance existante.
+    ignore_changes = [ami, user_data]
   }
 }
 
